@@ -1,8 +1,8 @@
 <template>
   <div class="max-w-sm rounded overflow-hidden shadow-lg relative">
-    <a :href="`/products/${id}`">
+    <g-link :to="`/products/${id}`">
       <img class="w-full" :src="image" :alt="name" />
-    </a>
+    </g-link>
     <div class="px-6 py-4">
       <div class="flex justify-between align-center mb-2">
         <div class="font-bold text-lg" v-html="name"></div>

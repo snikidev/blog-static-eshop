@@ -112,7 +112,9 @@ templates: {
 },
 ```
 
-So now, when we go to `/product/product_id` we'll use `Product.vue` page in `templates` folder.
+*Note: in templates, the property should always be named `CommercejsProducts` because that's the name for it in `gatsby-source-plugin`.*
+
+So now, when we go to `/products/product_id` we'll use `CommercejsProducts.vue` page in `templates` folder.
 
 Page query for a single page would look like this 
 
@@ -371,7 +373,7 @@ body {
 </style>
 ```
 
-Since we already have `Commerce.js` SDK initialized, we can add our `addToCart` method for our `<Product />` component.
+Since we already have `Commerce.js` SDK initialized, we can add our `addToCart` method for our `<Product />` component We'll keep it in `Index.vue` though, and pass it down to Product component as a prop.
 
 ```js
 methods: {
@@ -389,20 +391,117 @@ methods: {
 
 *Note: I’m being very lazy here and doing console.logs, when in real e-com store we should probably setup something like [vue-notifications](https://www.npmjs.com/package/vue-notification) to have a better feedback for the user.*
 
+Let's not forget the single `CommercejsProducts.vue` template. Together with styling and query, it'll look like this.
+
+```js
+<template>
+  <Layout :quantity="quantity" :checkoutLink="checkoutLink">
+    <div class="w-full py-8 px-6 bg-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4 rounded shadow-lg">
+      <div class="col-span-1">
+        <img :src="this.$page.commercejsProducts.media.source" />
+      </div>
+      <div class="col-span-1 md:col-span-2 relative">
+        <div class="flex justify-between mb-8">
+          <div>
+            <div
+              class="text-2xl font-bold text-gray-800"
+              v-html="this.$page.commercejsProducts.name"
+            ></div>
+            <div
+              class="text-gray-700 text-sm italic"
+              v-html="this.$page.commercejsProducts.id"
+            ></div>
+          </div>
+          <div
+            class="text-gray-700 text-lg"
+            v-html="this.$page.commercejsProducts.price.formatted_with_code"
+          ></div>
+        </div>
+        <div class="font-semibold text-gray-800 mb-2">Description</div>
+        <div
+          class="mb-16 md:mb-6"
+          v-html="this.$page.commercejsProducts.description"
+        ></div>
+        <button
+          class="text-sm bg-green-500 hover:bg-green-700 text-white font-semibold py-2 px-4 mx-auto rounded absolute right-0 bottom-0 w-full"
+          @click="onAddToBasket($page.commercejsProducts.id)"
+        >
+          Add to basket
+        </button>
+      </div>
+    </div>
+  </Layout>
+</template>
+
+<page-query>
+query ($id: ID!) {
+  commercejsProducts(id: $id) {
+    price {
+      formatted_with_code
+    }
+    name
+    description
+    id
+    media {
+      source
+    }
+  }
+}
+</page-query>
+
+<script>
+import commerce from "../utils";
+
+export default {
+  name: "Product",
+  data: () => ({
+    quantity: 0,
+    checkoutLink: null,
+  }),
+  mounted() {
+    commerce.cart.retrieve().then((cart) => {
+      console.log(cart);
+      this.quantity = cart.total_items;
+      this.checkoutLink = cart.hosted_checkout_url;
+    });
+  },
+  methods: {
+    onAddToBasket(id) {
+      commerce.cart
+        .add(id, 1)
+        .then((response) => {
+          console.log(response);
+          this.quantity = response.cart.total_items;
+        })
+        .catch((e) => console.log(e));
+    },
+  },
+};
+</script>
+```
+
+*Note: I'm copy/pasting `onAddToBasket` method, but you can probably abstract it into a util function and import and reuse it.*
+
 ## Checkout
 
-To save some time I’m going to use a `hosted_checkout_link` to finish the checkout process. (PS Did you know Commerce.js had a hosted checkout page? I just learned it now!). We get it from the `cart`object in our `mounted()` method together with the quantity.
+To save some time I’m going to use a `hosted_checkout_link` to finish the checkout process. (PS Did you know Commerce.js had a hosted checkout page? I just learned it now!). We get it from the `cart` object in our `mounted()` method together with the quantity.
 
-Getting ahead of myself, I've already added that link to the `<Cart />` component name `checkoutLink`. So now, when you click on a cart icon, it opens a new tab for a hosted checkout. After filling in all the fields and submitting the form, we can return to our site, refresh, and we'll have 0 items in a basket. Magic! 
+Getting ahead of myself, I've already added that link to the `<Cart />` component named `checkoutLink`. So now, when you click on a cart icon, it opens a new tab for a hosted checkout. After filling in all the fields and submitting the form, we can return to our site, refresh, and we'll have 0 items in a basket. Magic! 
 
-## Conclusion
+## Deploy
+
+Deploying is rather simple. We just need push this code to any git repo. Then link that repo in our Vercel admin area, and deploy from there. Vercel even recognizes gridsome and applies predefined build script, which you can always overwrite if you need. 
+
+And we'll have our shop online at
+
+## Last few words
 
 All of this is hosted on Vercel for free (for small projects), gives us a lot of freedom to do any checkout experience and any other features we want. For example, we can:
 
-- create our own checkout for
+- create our own checkout form
 - create a custom thank you page
 - create a custom lambda function to sync user data/info through API with other services, like a CRM, Loyalty Program/System after the user checkout.
 
 And if we're updating products in commerce.js admin area, we simply need a webhook to tell Vercel to rebuild the site everytime that happens.
 
-The final project is available on my github - https://github.com/snikidev/blog-static-eshop
+The final project is my [GitHub repo](https://github.com/snikidev/blog-static-eshop).
